@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# babi taskzip
+*tar.gz
+
+# babi taskunzip directory
+tasks_1-20_v1-2/
