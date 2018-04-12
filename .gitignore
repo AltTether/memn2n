@@ -108,3 +108,6 @@ tasks_1-20_v1-2/
 
 # zipfile
 *.zip
+
+# ipynb
+*.ipynb
