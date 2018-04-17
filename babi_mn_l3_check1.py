@@ -66,7 +66,7 @@ def convert_ids_(inputs, ids, max_story_length, max_sentence_length, max_query_l
                 sentence_ids += [ids[word]]
             if len(sentence_ids) < max_sentence_length:
                 sentence_ids += (0 for _ in range(max_sentence_length - len(sentence_ids)))
-            
+
         x_ids_list += [sentence_ids]
 
         q_ids = []
@@ -232,7 +232,6 @@ def main():
 
     train_input = create_babi_data(data_path, filetype="train", num_hint=1)
     test_input = create_babi_data(data_path, filetype="test", num_hint=1)
-
     ids, ids_ = babi_data_util.create_vocab_dict(train_input, test_input)
 
     max_sentence_length = max(map(len, (x for x, _, _, in train_input + test_input)))

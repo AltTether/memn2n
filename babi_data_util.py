@@ -79,11 +79,31 @@ def get_max_story_length(inputs):
         story_length_count += 1
     return max_story_length
 
+def get_max_story_length_(inputs):
+    max_story_length = -1;
+    for story in inputs:
+        max_story_length = max(max_story_length, len(story[0]))
+    return max_story_length
+
 
 def create_vocab_dict(train_input, test_input):
     vocab = set()
     for story, q, answer in train_input + test_input:
         vocab |= set(story + q + answer)
+    vocab = sorted(vocab)
+    ids = dict((v, i+1) for i, v in enumerate(vocab))
+    ids_ = [0 for _ in range(len(vocab)+1)]
+    for i, v in enumerate(vocab):
+        ids_[i+1] = v
+    return ids, ids_
+
+def create_vocab_dict_(train_input, test_input):
+    vocab = set()
+    for story, q, answer in train_input + test_input:
+        story_ = []
+        for sentence in story:
+            story_ += sentence
+        vocab |= set(story_ + q + answer)
     vocab = sorted(vocab)
     ids = dict((v, i+1) for i, v in enumerate(vocab))
     ids_ = [0 for _ in range(len(vocab)+1)]
