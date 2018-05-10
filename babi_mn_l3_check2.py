@@ -52,15 +52,27 @@ def convert_ids_(inputs, ids, max_story_length, max_sentence_length, max_query_l
         output += [[x_ids_list, q_ids, t_id]]
     return output
 
-def inference(x, q, t, d, V, n_layer):
+def inference(x, q, t, d, V, n_layer, batch_size):
     A = tf.Variable(tf.concat([tf.zeros(shape=[1, d], dtype=tf.float32), tf.truncated_normal(shape=[V, d], dtype=tf.float32)], axis=0))
     Cn = [tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.truncated_normal(shape=[V, d])], axis=0)) for _ in range(n_layer)]
 
-    next_u = tf.nn.embedding_lookup(A, q)
+    next_u = tf.reduce_sum(tf.nn.embedding_lookup(A, q))
+    m = None
+    for layer in range(n_layer):
+        if layer == 0:
+            A_ = A
+        else:
+            A_ = Cn[layer-1]
+        C = Cn[layer]
+
+        m = tf.reduce_sum(tf.nn.embedding_lookup(A_, x), axis=2)
+        p = tf.nn.softmax(tf.matmul(m, tf.transpose(next_u, perm=[0, 2, 1])))
+        c = tf.reduce_sum(tf.nn.embedding_lookup(C, x), axis=2)
+        o = tf.matmul(tf.transpose(p, perm=[0, 2, 1]), c)
+
     return next_u
 
 def main():
-    V = 20
     d = 20
     batch_size = 32
     n_layer = 3
@@ -69,6 +81,7 @@ def main():
     test_input = create_babi_data(data_path, filetype="test", num_hint=1)
 
     ids, ids_ = babi_data_util.create_vocab_dict_(train_input, test_input)
+    V = len(ids)
 
     max_story_length = babi_data_util.get_max_story_length_(train_input)
     max_sentence_length = max(map(len, (x for x, _, _, in train_input + test_input)))
@@ -80,7 +93,7 @@ def main():
     Q = tf.placeholder(dtype=tf.int32, shape=[None, max_query_length])
     T = tf.placeholder(dtype=tf.int32, shape=[None])
 
-    next_u = inference(X, Q, T, d, V, n_layer)
+    next_u = inference(X, Q, T, d, V, n_layer, batch_size)
 
     n_batch = len(x) // batch_size
 
@@ -91,6 +104,6 @@ def main():
         for i in range(n_batch):
             start = batch_size * i
             end = start + batch_size
-            sess.run(tf.shape(next_u), feed_dict={X: x[start:end], Q: q[start:end], T: t[start:end]})
+            print(sess.run(tf.shape(next_u), feed_dict={X: x[start:end], Q: q[start:end], T: t[start:end]}))
 if __name__ == "__main__":
     main()
