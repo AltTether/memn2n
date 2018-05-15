@@ -1,3 +1,7 @@
+import tarfile
+import sklearn.utils
+
+
 def get_stories(inputs, num_hint):
     inputs_list = to_list(inputs)
     sp_inputs_list = filter_and_split(inputs_list)
@@ -110,3 +114,60 @@ def create_vocab_dict_(train_input, test_input):
     for i, v in enumerate(vocab):
         ids_[i+1] = v
     return ids, ids_
+
+def create_babi_data(path, filetype="train", num_hint=1):
+    tar = tarfile.open(path)
+    challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'
+    return get_stories(tar.extractfile(challenge.format(filetype)), num_hint)
+
+def create_input_data_(inputs, ids, max_sentence_length, max_query_length):
+    max_story_length = get_max_story_length_(inputs)
+    ids_inputs = convert_ids_(inputs, ids, max_story_length, max_sentence_length, max_query_length)
+
+    x = []
+    q = []
+    t = []
+    for ids_input in ids_inputs:
+        x +=[ids_input[0]]
+        q += [ids_input[1]]
+        t += ids_input[2]
+    return x, q, t
+
+def convert_ids_(inputs, ids, max_story_length, max_sentence_length, max_query_length):
+    output = []
+    for x, q, t in inputs:
+        x_ids_list = []
+        for sentence in x:
+            sentence_ids = []
+            for word in sentence:
+                sentence_ids += [ids[word]]
+            if len(sentence_ids) < max_sentence_length:
+                sentence_ids += (0 for _ in range(max_sentence_length - len(sentence_ids)))
+
+            x_ids_list += [sentence_ids]
+
+        if len(x_ids_list) < max_story_length:
+            for _ in range(max_story_length - len(x_ids_list)):
+                x_ids_list += [[0 for __ in range(max_sentence_length)]]
+
+        q_ids = []
+        for word in q:
+            q_ids += [ids[word]]
+        if len(q_ids) < max_query_length:
+            q_ids += (0 for _ in range(max_query_length - len(q_ids)))
+        t_id = [ids[t[0]]]
+        output += [[x_ids_list, q_ids, t_id]]
+    return output
+
+def split_train_validate_(x, q, t, train_size=0.9, is_shuffle=True):
+    if is_shuffle:
+        x_, q_, t_ = sklearn.utils.shuffle(x, q, t)
+    n_input = len(x_)
+    n_train = int(n_input * train_size)
+    train_x = x_[:n_train]
+    train_q = q_[:n_train]
+    train_t = t_[:n_train]
+    validate_x = x_[n_train:]
+    validate_q = q_[n_train:]
+    validate_t = t_[n_train:]
+    return train_x, train_q, train_t, validate_x, validate_q, validate_t
