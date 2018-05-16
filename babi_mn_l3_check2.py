@@ -63,6 +63,12 @@ def predict(infer_output):
 def calc_loss(infer_output, t, V):
     return tf.reduce_mean(-tf.reduce_sum(tf.log(tf.clip_by_value(infer_output, 1e-10, 1.0)) * tf.one_hot(t, depth=V+1), axis=1))
 
+def calc_loss_(infer_output, t, V):
+    return -tf.reduce_sum(tf.log(tf.clip_by_value(infer_output, 1e-10, 1.0)) * tf.one_hot(t, depth=V+1))
+
+def calc_loss__(infer_output, t, V):
+    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(t, depth=V+1),logits=infer_output))
+
 def train(loss):
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
     return optimizer.minimize(loss)
@@ -114,8 +120,8 @@ def main():
     BS = tf.placeholder(dtype=tf.int32, shape=[])
 
     a = inference_(X, Q, T, d, V, n_layer, BS)
-    loss = calc_loss(a, T, V)
-    train_step = train(loss)
+    loss = calc_loss__(a, T, V)
+    train_step = train_(loss)
 
     accuracy = calc_acc(a, T)
     prediction = predict(a)
