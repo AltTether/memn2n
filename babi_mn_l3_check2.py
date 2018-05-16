@@ -76,7 +76,7 @@ def train(loss):
 def train_(loss):
     tvars = tf.trainable_variables()
     grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), 40)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01)
     return optimizer.apply_gradients(zip(grads, tvars), global_step=tf.train.get_or_create_global_step())
 
 def calc_acc(output, t):
@@ -133,6 +133,7 @@ def main():
     ckpt = tf.train.get_checkpoint_state('./checkpoints/')
     if ckpt:
         last_model = ckpt.model_checkpoint_path
+        saver.restore(sess, last_model)
     else:
         sess.run(tf.global_variables_initializer())
 
