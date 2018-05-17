@@ -27,15 +27,15 @@ def inference(x, q, t, d, V, n_layer, batch_size):
         o = tf.matmul(tf.transpose(p, perm=[0, 2, 1]), c)                       # shape=(batch_size, 1, d)
         next_u = tf.add(tf.reshape(o, shape=[batch_size, d]), next_u)           # shape=(batch_size, d)
 
-    W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1], dtype=tf.float32), tf.truncated_normal(shape=[d, V], dtype=tf.float32)], axis=1))
+    W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1], dtype=tf.float32), tf.truncated_normal(shape=[d, V], dtype=tf.float32, stddev=0.1)], axis=1))
     a = tf.nn.softmax(tf.matmul(next_u, W))
 
     return a
 
 def inference_(x, q, t, d, V, n_layer, batch_size):
-    A = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.truncated_normal(shape=[V, d])], axis=0))
-    B = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.truncated_normal(shape=[V, d])], axis=0))
-    Cn = [tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.truncated_normal(shape=[V, d])], axis=0)) for _ in range(n_layer)]
+    A = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1)], axis=0))
+    B = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1], axis=0))
+    Cn = [tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1], axis=0)) for _ in range(n_layer)]
 
     next_u = tf.reshape(tf.reduce_sum(tf.nn.embedding_lookup(B, q), axis=1), shape=[-1, d, 1])  # shape = [bs, d, 1]
 
@@ -52,8 +52,9 @@ def inference_(x, q, t, d, V, n_layer, batch_size):
         o = tf.matmul(p, tf.transpose(c, perm=[0, 2, 1]))                                       # shape = [bs, 1, d]
         next_u = tf.add(next_u, tf.transpose(o, perm=[0, 2, 1]))                                 # shape = [bs, d, 1]
 
-    W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1]), tf.truncated_normal(shape=[d, V])], axis=1))
+    W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1]), tf.random_normal(shape=[d, V], stddev=0.1)], axis=1))
     a = tf.nn.softmax(tf.matmul(tf.reshape(next_u, shape=[-1, d]), W))
+    
 
     return a
 
