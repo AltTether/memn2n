@@ -32,10 +32,12 @@ def inference(x, q, t, d, V, n_layer, batch_size):
 
     return a
 
-def inference_(x, q, t, d, V, n_layer, batch_size):
+def inference_(x, q, t, d, V, n_layer, batch_size, max_story_length):
     A = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1)], axis=0))
     B = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1], axis=0))
     Cn = [tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V, d], stddev=0.1], axis=0)) for _ in range(n_layer)]
+    Ta = tf.Variable(tf.random_normal(shape=[max_story_length, d], stddev=0.1))
+    Tc = tf.Variable(tf.random_normal(shape=[max_story_length, d], stddev=0.1))
 
     next_u = tf.reshape(tf.reduce_sum(tf.nn.embedding_lookup(B, q), axis=1), shape=[-1, d, 1])  # shape = [bs, d, 1]
 
@@ -46,15 +48,14 @@ def inference_(x, q, t, d, V, n_layer, batch_size):
             A_ = Cn[layer-1]
         C = Cn[layer]
 
-        m = tf.transpose(tf.reduce_sum(tf.nn.embedding_lookup(A_, x), axis=2), perm=[0,2,1])    # shape = [bs, d, storu_l]
+        m = tf.transpose(tf.reduce_sum(tf.nn.embedding_lookup(A_, x), axis=2)+Ta, perm=[0,2,1])    # shape = [bs, d, storu_l]
         p = tf.nn.softmax(tf.matmul(tf.transpose(next_u, perm=[0, 2, 1]), m))                   # shape = [bs, 1, story_l]
-        c = tf.transpose(tf.reduce_sum(tf.nn.embedding_lookup(C, x), axis=2), perm=[0,2,1])     # shape = [bs, d, story_l]
+        c = tf.transpose(tf.reduce_sum(tf.nn.embedding_lookup(C, x), axis=2)+Tc, perm=[0,2,1])     # shape = [bs, d, story_l]
         o = tf.matmul(p, tf.transpose(c, perm=[0, 2, 1]))                                       # shape = [bs, 1, d]
         next_u = tf.add(next_u, tf.transpose(o, perm=[0, 2, 1]))                                 # shape = [bs, d, 1]
 
     W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1]), tf.random_normal(shape=[d, V], stddev=0.1)], axis=1))
     a = tf.nn.softmax(tf.matmul(tf.reshape(next_u, shape=[-1, d]), W))
-    
 
     return a
 
