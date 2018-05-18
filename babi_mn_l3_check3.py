@@ -55,7 +55,7 @@ def calc_acc(output, t):
 def main():
     d = 20
     batch_size = 32
-    n_layer = 3
+    n_layer = 1
     learning_rate = 0.01
 
     train_input = babi_data_util.create_babi_data(data_path)
