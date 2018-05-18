@@ -57,28 +57,34 @@ def inference_(x, q, t, d, V, n_layer, batch_size, max_story_length):
     W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1]), tf.random_normal(shape=[d, V], stddev=0.1)], axis=1))
     a = tf.nn.softmax(tf.matmul(tf.reshape(next_u, shape=[-1, d]), W))
 
-    return a
+    # 正則化項
+    L2_sqr = tf.nn.l2_loss(A) + tf.nn.l2_loss(B) + tf.nn.l2_loss(W)
+    for i in range(n_layer):
+        L2_sqr += tf.nn.l2_loss(Cn[i])
+
+    return a, L2_sqr
 
 def predict(infer_output):
     return tf.argmax(infer_output, axis=1)
 
+# tensorflowの関数未使用でのクロスエントロピー誤差の平均の算出
 def calc_loss(infer_output, t, V):
     return tf.reduce_mean(-tf.reduce_sum(tf.log(tf.clip_by_value(infer_output, 1e-10, 1.0)) * tf.one_hot(t, depth=V+1), axis=1))
 
+# tensorflowの関数未使用でのクロスエントロピー誤差の算出
 def calc_loss_(infer_output, t, V):
-    return -tf.reduce_sum(tf.log(tf.clip_by_value(infer_output, 1e-10, 1.0)) * tf.one_hot(t, depth=V+1))
+    return -tf.reduce_sum(tf.log(tf.clip_by_value(infer_output, 1e-10, 1.0)) * tf.one_hot(t, depth=V+1), axis=1)
 
-def calc_loss__(infer_output, t, V):
-    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(t, depth=V+1),logits=infer_output))
-
+# クリッピングなしでの学習
 def train(loss):
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
     return optimizer.minimize(loss)
 
-def train_(loss):
+# ノルムが40になるようにクリッピングしての学習
+def train_(loss, lr):
     tvars = tf.trainable_variables()
     grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), 40)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
     return optimizer.apply_gradients(zip(grads, tvars), global_step=tf.train.get_or_create_global_step())
 
 def calc_acc(output, t):
@@ -102,6 +108,7 @@ def main():
     d = 20
     batch_size = 32
     n_layer = 1
+    learning_rate = 0.001
 
     train_input = babi_data_util.create_babi_data(data_path)
     test_input = babi_data_util.create_babi_data(data_path, filetype="test", num_hint=1)
@@ -120,10 +127,12 @@ def main():
     Q = tf.placeholder(dtype=tf.int32, shape=[None, max_query_length])
     T = tf.placeholder(dtype=tf.int32, shape=[None])
     BS = tf.placeholder(dtype=tf.int32, shape=[])
+    LR = tf.placeholder(dtype=tf.int32, shape=[])
 
-    a = inference_(X, Q, T, d, V, n_layer, BS)
-    loss = calc_loss__(a, T, V)
-    train_step = train_(loss)
+    a, L2_sqr = inference_(X, Q, T, d, V, n_layer, BS)
+    lambda2 = 0.01
+    loss = tf.reduce_mean(calc_loss_(a, T, V) + lambda2 * L2_sqr)
+    train_step = train_(loss, LR)
 
     accuracy = calc_acc(a, T)
     prediction = predict(a)
@@ -145,17 +154,19 @@ def main():
         for i in range(n_batch):
             start = batch_size * i
             end = start + batch_size
-            sess.run(train_step, feed_dict={X: x_train[start:end], Q: q_train[start:end], T: t_train[start:end], BS: batch_size})
+            sess.run(train_step, feed_dict={X: x_train[start:end], Q: q_train[start:end], T: t_train[start:end], BS: batch_size, LR: learning_rate})
         if epoch % 10 == 0:
-            print("train_loss: {0:.10f}".format(loss.eval(session=sess, feed_dict={X: x_train, Q: q_train, T: t_train, BS: len(x_train)})),
-                  "valid_loss: {0:.3f}".format(loss.eval(session=sess, feed_dict={X: x_valid, Q: q_valid, T: t_valid, BS: len(x_valid)})),
-                  "train_acc: {0:.4f}".format(accuracy.eval(session=sess, feed_dict={X: x_train, Q: q_train, T: t_train, BS: len(x_train)})),
-                  "valid_acc: {0:.4f}".format(accuracy.eval(session=sess, feed_dict={X: x_valid, Q: q_valid, T: t_valid, BS: len(x_valid)})))
-            print(prediction.eval(session=sess, feed_dict={X: x_train[0:10], Q: q_train[0:10], T: t_train[0:10], BS: len(x_train[0:10])}))
-            print(t_train[0:10])
+            print("train_loss: {0:.10f}".format(loss.eval(session=sess, feed_dict={X: x_train, Q: q_train, T: t_train, BS: len(x_train), LR: learning_rate})),
+                  "valid_loss: {0:.3f}".format(loss.eval(session=sess, feed_dict={X: x_valid, Q: q_valid, T: t_valid, BS: len(x_valid), LR: learning_rate})),
+                  "train_acc: {0:.4f}".format(accuracy.eval(session=sess, feed_dict={X: x_train, Q: q_train, T: t_train, BS: len(x_train), LR: learning_rate})),
+                  "valid_acc: {0:.4f}".format(accuracy.eval(session=sess, feed_dict={X: x_valid, Q: q_valid, T: t_valid, BS: len(x_valid), LR: learning_rate})))
+            for id_y, id_t in zip(prediction.eval(session=sess, feed_dict={X: x_train[0:10], Q: q_train[0:10], T: t_train[0:10], BS: len(x_train[0:10]), LR: learning_rate}), t_train[0:10]):
+                print(ids_[id_y], ids_[id_t])
 
         if epoch % 100 == 0 and epoch != 0:
             saver.save(sess, "./checkpoints/model.ckpt")
+        #if epoch % 2500 == 0 and epoch != 0 and epoch <= 10000:
+        #    learning_rate /= 2
 
 
 if __name__ == "__main__":
