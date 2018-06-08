@@ -7,10 +7,10 @@ import tensorflow as tf
 data_path = "tasks_1-20_v1-2.tar.gz"
 
 def inference(x, q, t, V, d, n_layer, max_story_l):
-    A = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V ,d], stddev=0.1)], axis=0))
-    B = tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V ,d], stddev=0.1)], axis=0))
-    Cn = [tf.Variable(tf.concat([tf.zeros(shape=[1, d]), tf.random_normal(shape=[V ,d], stddev=0.1)], axis=0)) for _ in range(n_layer)]
-    W = tf.Variable(tf.concat([tf.zeros(shape=[d, 1]), tf.random_normal(shape=[d, V], stddev=0.1)], axis=1))
+    A = tf.concat([tf.zeros(shape=[1, d]), tf.Variable(tf.random_normal(shape=[V ,d], stddev=0.1))], axis=0)
+    B = tf.concat([tf.zeros(shape=[1, d]), tf.Variable(tf.random_normal(shape=[V ,d], stddev=0.1))], axis=0)
+    Cn = [tf.concat([tf.zeros(shape=[1, d]), tf.Variable(tf.random_normal(shape=[V ,d], stddev=0.1))], axis=0) for _ in range(n_layer)]
+    W = tf.Variable(tf.random_normal(shape=[d, V+1], stddev=0.1))
     Ta = tf.Variable(tf.random_normal(shape=[max_story_l, d], stddev=0.1))
     Tcn = [tf.Variable(tf.random_normal(shape=[max_story_l, d], stddev=0.1)) for _ in range(n_layer)]
 
